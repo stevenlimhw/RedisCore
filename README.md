@@ -20,3 +20,11 @@ I am learning from the "golang genius" himself on YouTube (Anthony GG) by watchi
 3. The `handlePeerConnection` function will create a new `Peer` and add it into the server's `addPeerCh` channel. Then, the `Peer::readMessages` function will that is called will handle reading messages sent to the peer.
 
 In summary, when the TCP server starts, we need to continuously listen for new peer connections and establish them. For each peer connection established, we then read the messages sent over that connection.
+
+## Gotcha Compilation
+
+This is a list of gotchas that I encountered while working on this project.
+
+- Test
+- Test
+- Test
