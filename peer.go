@@ -1,13 +1,13 @@
 package main
 
 import (
-	"fmt"
 	"log/slog"
 	"net"
 )
 
 type Peer struct {
 	conn net.Conn
+  messageCh chan []byte
 }
 
 func (peer *Peer) readMessages() {
@@ -18,7 +18,11 @@ func (peer *Peer) readMessages() {
 		if err != nil {
 			slog.Error("Error in reading messages.")
 		}
-		slog.Info(fmt.Sprintf("Received a message of size %d bytes.", size))
-		slog.Debug(string(buffer[:size]))
+
+    messageBuffer := make([]byte, size)
+    copy(messageBuffer, buffer)
+    peer.messageCh <-messageBuffer
+    //message := string(buffer[:size])
+    //slog.Info(message)
 	}
 }

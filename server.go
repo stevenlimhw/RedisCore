@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"log/slog"
 	"net"
@@ -12,6 +14,7 @@ type Server struct {
 	peers map[*Peer]bool
 	addPeerCh chan *Peer
 	quitCh chan struct{}
+  messageCh chan []byte
 }
 
 func NewServer(addr string) *Server {
@@ -20,6 +23,7 @@ func NewServer(addr string) *Server {
 		peers: make(map[*Peer]bool),
 		addPeerCh: make(chan *Peer),
 		quitCh: make(chan struct{}),
+    messageCh: make(chan []byte),
 	}
 }
 
@@ -31,30 +35,41 @@ func (server *Server) Start() error {
 	}
 	server.listener = ln
 
-	slog.Info("Checking current peer connections...")
-	go server.checkPeerConnections()
+	slog.Info("Channels are being handled by the server.")
+	go server.handleChannels()
 
 	slog.Info(fmt.Sprintf("Starting TCP server at port %s ...", server.listenAddr))
 	return server.acceptPeerConnections()
 }
 
-// checkPeerConnections handles cases when adding a new peer and
-// quitting the channel
-func (server *Server) checkPeerConnections() {
+func (server *Server) handleMessageBytes(messageBytes []byte) {
+  reader := bufio.NewReader(bytes.NewReader(messageBytes))
+  resp := &Resp{
+    reader: reader,
+  }
+  resp.parseRespCommand()
+}
+
+// Handles data coming into the channels in the server.
+func (server *Server) handleChannels() {
 	for {
 		select {
 		case <-server.quitCh:
-			slog.Info("Quitting channel.")
+			slog.Info("Quitting server.")
 			return
 		case peer := <-server.addPeerCh:
-			slog.Info("Adding channel.")
+			slog.Info("Adding and tracking peer connection to server.")
 			server.peers[peer] = true
+    case messageBytes := <-server.messageCh:
+      slog.Info("Received message in bytes format.")
+      server.handleMessageBytes(messageBytes)
+      //slog.Info(string(messageBytes))
 		}
+
 	}
 }
 
-// acceptPeerConnections creates a new listener for any new peer connections to the server
-// and handles the reading of messages for the peer connections.
+// Creates a new listener for any new peer connections to the server.
 func (server *Server) acceptPeerConnections() error {
 	for {
 		conn, err := server.listener.Accept()
@@ -66,13 +81,15 @@ func (server *Server) acceptPeerConnections() error {
 	}
 }
 
-// handlePeerConnection reads messages sent to the peer connection.
+// Adds a new peer connection to the server and reads messages sent by the peer.
 func (server *Server) handlePeerConnection(conn net.Conn) {
 	peer := &Peer{
 		conn: conn,
+    messageCh: server.messageCh,
 	}
+  // add peer connection to server via channel
 	server.addPeerCh <-peer
 	slog.Info("Successfully accepted peer connection.", "remoteAddr", conn.RemoteAddr())
-
+  
 	peer.readMessages()
 }
