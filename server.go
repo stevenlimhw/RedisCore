@@ -43,6 +43,7 @@ func (server *Server) Start() error {
 
 func (server *Server) handleMessage(message *Message) {
   fmt.Println("SERVER: ", message.value)
+  message.peer.conn.Write([]byte("+OK\r\n"))
 }
 
 // Handles data coming into the channels in the server.
