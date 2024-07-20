@@ -1,11 +1,10 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
 	"log/slog"
 	"net"
+	"os"
 )
 
 type Server struct {
@@ -14,7 +13,7 @@ type Server struct {
 	peers map[*Peer]bool
 	addPeerCh chan *Peer
 	quitCh chan struct{}
-  messageCh chan []byte
+  messageCh chan *Message
 }
 
 func NewServer(addr string) *Server {
@@ -23,7 +22,7 @@ func NewServer(addr string) *Server {
 		peers: make(map[*Peer]bool),
 		addPeerCh: make(chan *Peer),
 		quitCh: make(chan struct{}),
-    messageCh: make(chan []byte),
+    messageCh: make(chan *Message),
 	}
 }
 
@@ -42,12 +41,8 @@ func (server *Server) Start() error {
 	return server.acceptPeerConnections()
 }
 
-func (server *Server) handleMessageBytes(messageBytes []byte) {
-  reader := bufio.NewReader(bytes.NewReader(messageBytes))
-  resp := &Resp{
-    reader: reader,
-  }
-  resp.parseRespCommand()
+func (server *Server) handleMessage(message *Message) {
+  fmt.Println("SERVER: ", message.value)
 }
 
 // Handles data coming into the channels in the server.
@@ -55,28 +50,36 @@ func (server *Server) handleChannels() {
 	for {
 		select {
 		case <-server.quitCh:
-			slog.Info("Quitting server.")
-			return
+			slog.Info("Received signal to close server. Server closing...")
+      server.listener.Close()
+      os.Exit(1)
 		case peer := <-server.addPeerCh:
 			slog.Info("Adding and tracking peer connection to server.")
 			server.peers[peer] = true
-    case messageBytes := <-server.messageCh:
-      slog.Info("Received message in bytes format.")
-      server.handleMessageBytes(messageBytes)
-      //slog.Info(string(messageBytes))
+    case message := <-server.messageCh:
+      slog.Info("Received message from message channel.")
+      server.handleMessage(message)
 		}
-
 	}
 }
 
 // Creates a new listener for any new peer connections to the server.
 func (server *Server) acceptPeerConnections() error {
+  retries := 0
 	for {
 		conn, err := server.listener.Accept()
+
+    if retries >= 3 && err != nil {
+      slog.Error("Failed to connect to peer after retries. Closing connection.")
+      return err
+    }
+
 		if err != nil {
 			slog.Error("Failed to connect to peer. Retrying...")
+      retries++
 			continue
 		}
+    slog.Info("Connecting to peer...")
 		go server.handlePeerConnection(conn)
 	}
 }
@@ -85,6 +88,7 @@ func (server *Server) acceptPeerConnections() error {
 func (server *Server) handlePeerConnection(conn net.Conn) {
 	peer := &Peer{
 		conn: conn,
+    quitCh: server.quitCh,
     messageCh: server.messageCh,
 	}
   // add peer connection to server via channel

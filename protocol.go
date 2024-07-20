@@ -2,41 +2,165 @@ package main
 
 import (
 	"bufio"
+	"io"
 	"log/slog"
 	"strconv"
 )
+
+const (
+  STRING = '+'
+  ERROR = '-'
+  INTEGER = ':'
+  BULK = '$'
+  ARRAY = '*'
+)
+
+type Value struct {
+
+  // determine the data type carried by the value
+  typ string
+
+  // value of the string received from simple strings
+  str string
+
+  // value of the integer from integers
+  num int
+
+  // string received from RESP bulk strings
+  bulk string
+
+  // values received from RESP arrays
+  array []Value
+
+}
+
+func (value *Value) String() string {
+  switch {
+  case value.typ == "array":
+    str := ""
+    for _, value := range value.array {
+      str += value.String()
+      str += "\n"
+    }
+    return str
+  case value.typ == "bulk":
+    return value.bulk
+    
+  default:
+    return "NA"
+  }
+} 
 
 
 type Resp struct {
   reader *bufio.Reader
 }
 
-func (resp *Resp) parseRespCommand() {
+func NewResp(reader io.Reader) *Resp {
+  return &Resp{
+    reader: bufio.NewReader(reader),
+  }
+}
+
+func (resp *Resp) Parse() (Value, error) {
   // the first byte determines the data type
-  b, _ := resp.reader.ReadByte()
-  slog.Info(string(b))
-  if b != '$' {
-    slog.Error("Invalid type: expecting bulk strings only")
-    //os.Exit(1)
-    return
+  _type, err := resp.reader.ReadByte()
+
+  if err != nil {
+    return Value{}, err
   }
 
-  // the second byte represents the number of chars in the string
-  sizeBytes, _ := resp.reader.ReadByte()
-  size, _ := strconv.ParseInt(string(sizeBytes), 10, 64)
-  slog.Info(strconv.Itoa(int(size)))
-
-  // consume CR (i.e. \r)
-  resp.reader.ReadByte()
-  resp.reader.ReadByte()
-  // consume LF (i.e. \n)
-  resp.reader.ReadByte()
-  resp.reader.ReadByte()
-
-  // read the characters
-  strContent := make([]byte, size)
-  resp.reader.Read(strContent)
-  slog.Info(string(strContent))
+  switch _type {
+  case BULK:
+    return resp.readBulk()
+  case ARRAY:
+    return resp.readArray()
+  default:
+    slog.Error("Unknown type: %v", string(_type))
+    return Value{}, nil
+  }
 }
+
+// Read one byte at a time until we reach end of line indicated by '\r'.
+// Then return the line without the last 2 bytes, which are '\r\n'.
+func (resp *Resp) readLine() (line []byte, n int, err error) {
+  for {
+    b, err := resp.reader.ReadByte()
+    if err != nil {
+      return nil, 0, err
+    }
+    n += 1
+    line = append(line, b)
+    if len(line) >= 2 && line[len(line) - 2] == '\r' {
+      break
+    }
+  }
+  return line[:len(line) - 2], n, nil
+}
+
+func (resp *Resp) readInteger() (x int, n int, err error) {
+  line, n, err := resp.readLine()
+  if err != nil {
+    return 0, 0, err
+  }
+  i64, err := strconv.ParseInt(string(line), 10, 64)
+  if err != nil {
+    return 0, n, err
+  }
+  return int(i64), n, nil
+}
+
+// Read the RESP Array type starting from the second byte, since
+// the first byte has already been read in the Read method.
+func (resp *Resp) readArray() (Value, error) {
+  v := Value{}
+  v.typ = "array"
+
+  // read array length
+  arrLen, _, err := resp.readInteger()
+  if err != nil {
+    return v, err
+  }
+
+  // parse and read the value for each subsequent lines
+  v.array = make([]Value, 0)
+  for i := 0; i < arrLen; i++ {
+    val, err := resp.Parse()
+    if err != nil {
+      return v, err
+    }
+
+    // append parsed value to array 
+    v.array = append(v.array, val)
+  }
+
+  return v, nil
+}
+
+func (resp *Resp) readBulk() (Value, error) {
+  v := Value{}
+  v.typ = "bulk"
+
+  bulkLen, _, err := resp.readInteger()
+  if err != nil {
+    return v, err
+  }
+
+  bulk := make([]byte, bulkLen)
+  resp.reader.Read(bulk)
+  v.bulk = string(bulk)
+
+  // consume the trailing CRLF
+  resp.readLine()
+
+  return v, nil
+}
+
+
+
+
+
+
+
 
 

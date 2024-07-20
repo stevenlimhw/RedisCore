@@ -1,28 +1,38 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
 	"net"
 )
 
 type Peer struct {
 	conn net.Conn
-  messageCh chan []byte
+  quitCh chan struct{}
+  messageCh chan *Message
+}
+
+type Message struct {
+  peer *Peer 
+  value Value
 }
 
 func (peer *Peer) readMessages() {
-	slog.Info("Reading messages sent to peer...")
-	for {
-		buffer := make([]byte, 1024)
-		size, err := peer.conn.Read(buffer)
-		if err != nil {
-			slog.Error("Error in reading messages.")
-		}
+  slog.Info("Reading messages from the peer connection...")
+  resp := NewResp(peer.conn)
 
-    messageBuffer := make([]byte, size)
-    copy(messageBuffer, buffer)
-    peer.messageCh <-messageBuffer
-    //message := string(buffer[:size])
-    //slog.Info(message)
-	}
+  for {
+    value, err := resp.Parse()
+    if err != nil {
+      slog.Error("Unable to parse RESP command.")
+      peer.quitCh <-struct{}{}
+    }
+    fmt.Println("PEER: ", value)
+    message := &Message{
+      peer: peer,
+      value: value,
+    } 
+    peer.messageCh <-message
+  }
 }
+
