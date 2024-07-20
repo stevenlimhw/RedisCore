@@ -15,42 +15,6 @@ const (
   ARRAY = '*'
 )
 
-type Value struct {
-
-  // determine the data type carried by the value
-  typ string
-
-  // value of the string received from simple strings
-  str string
-
-  // value of the integer from integers
-  num int
-
-  // string received from RESP bulk strings
-  bulk string
-
-  // values received from RESP arrays
-  array []Value
-
-}
-
-func (value *Value) String() string {
-  switch {
-  case value.typ == "array":
-    str := ""
-    for _, value := range value.array {
-      str += value.String()
-      str += "\n"
-    }
-    return str
-  case value.typ == "bulk":
-    return value.bulk
-    
-  default:
-    return "NA"
-  }
-} 
-
 
 type Resp struct {
   reader *bufio.Reader
