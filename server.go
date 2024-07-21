@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"strings"
 )
 
 type Server struct {
@@ -43,7 +44,30 @@ func (server *Server) Start() error {
 
 func (server *Server) handleMessage(message *Message) {
   fmt.Println("SERVER: ", message.value)
-  message.peer.conn.Write([]byte("+OK\r\n"))
+
+  value := message.value
+  if value.typ != "array" {
+    slog.Error("Invalid request: expected RESP array.")
+    return
+  }
+  if len(value.array) == 0 {
+    slog.Error("Invalid request: expected non-empty RESP array.")
+  }
+
+  command := strings.ToUpper(value.array[0].bulk)
+  args := value.array[1:]
+
+  writer := NewWriter(message.peer.conn)
+
+  handler, ok := Handlers[command]
+  if !ok {
+    slog.Error("Invalid command: ", command)
+    writer.Write(Value{typ: "string", str: ""})
+    return
+  }
+
+  result := handler(args)
+  writer.Write(result)
 }
 
 // Handles data coming into the channels in the server.
