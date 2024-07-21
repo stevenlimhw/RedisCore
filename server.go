@@ -9,21 +9,21 @@ import (
 )
 
 type Server struct {
-	listenAddr string
 	listener   net.Listener
-	peers      map[*Peer]bool
 	addPeerCh  chan *Peer
-	quitCh     chan struct{}
 	messageCh  chan *Message
+	peers      map[*Peer]bool
+	quitCh     chan struct{}
+	listenAddr string
 }
 
 func NewServer(addr string) *Server {
 	return &Server{
-		listenAddr: addr,
-		peers:      make(map[*Peer]bool),
 		addPeerCh:  make(chan *Peer),
-		quitCh:     make(chan struct{}),
 		messageCh:  make(chan *Message),
+		peers:      make(map[*Peer]bool),
+		listenAddr: addr,
+		quitCh:     make(chan struct{}),
 	}
 }
 
@@ -60,13 +60,20 @@ func (server *Server) handleMessage(message *Message) {
 
 	handler, ok := Handlers[command]
 	if !ok {
-		slog.Error("Invalid command: ", command)
-		writer.Write(Value{typ: "string", str: ""})
+		slog.Debug("Invalid command inputted:", "command", command)
+		err := writer.Write(&Value{typ: "string", str: ""})
+		if err != nil {
+			slog.Error("Failed to write value to connection.")
+		}
 		return
 	}
 
 	result := handler(args)
-	writer.Write(result)
+	err := writer.Write(result)
+	if err != nil {
+		slog.Error("Failed to write value to connection.")
+	}
+
 }
 
 // Handles data coming into the channels in the server.

@@ -8,11 +8,14 @@ import (
 )
 
 const (
-	STRING  = '+'
-	ERROR   = '-'
-	INTEGER = ':'
-	BULK    = '$'
-	ARRAY   = '*'
+	stringToken  = '+'
+	errorToken   = '-'
+	integerToken = ':'
+	bulkToken    = '$'
+	arrayToken   = '*'
+
+	ARRAY = "array"
+	BULK  = "bulk"
 )
 
 type Resp struct {
@@ -25,22 +28,22 @@ func NewResp(reader io.Reader) *Resp {
 	}
 }
 
-func (resp *Resp) Parse() (Value, error) {
+func (resp *Resp) Parse() (*Value, error) {
 	// the first byte determines the data type
 	_type, err := resp.reader.ReadByte()
 
 	if err != nil {
-		return Value{}, err
+		return &Value{}, err
 	}
 
 	switch _type {
-	case BULK:
+	case bulkToken:
 		return resp.readBulk()
-	case ARRAY:
+	case arrayToken:
 		return resp.readArray()
 	default:
-		slog.Error("Unknown type: %v", string(_type))
-		return Value{}, nil
+		slog.Debug("Unknown type detected:", "type", string(_type))
+		return &Value{}, nil
 	}
 }
 
@@ -52,7 +55,7 @@ func (resp *Resp) readLine() (line []byte, n int, err error) {
 		if err != nil {
 			return nil, 0, err
 		}
-		n += 1
+		n++
 		line = append(line, b)
 		if len(line) >= 2 && line[len(line)-2] == '\r' {
 			break
@@ -61,7 +64,7 @@ func (resp *Resp) readLine() (line []byte, n int, err error) {
 	return line[:len(line)-2], n, nil
 }
 
-func (resp *Resp) readInteger() (x int, n int, err error) {
+func (resp *Resp) readInteger() (x, n int, err error) {
 	line, n, err := resp.readLine()
 	if err != nil {
 		return 0, 0, err
@@ -75,9 +78,9 @@ func (resp *Resp) readInteger() (x int, n int, err error) {
 
 // Read the RESP Array type starting from the second byte, since
 // the first byte has already been read in the Read method.
-func (resp *Resp) readArray() (Value, error) {
-	v := Value{}
-	v.typ = "array"
+func (resp *Resp) readArray() (*Value, error) {
+	v := &Value{}
+	v.typ = ARRAY
 
 	// read array length
 	arrLen, _, err := resp.readInteger()
@@ -86,7 +89,7 @@ func (resp *Resp) readArray() (Value, error) {
 	}
 
 	// parse and read the value for each subsequent lines
-	v.array = make([]Value, 0)
+	v.array = make([]*Value, 0)
 	for i := 0; i < arrLen; i++ {
 		val, err := resp.Parse()
 		if err != nil {
@@ -100,9 +103,9 @@ func (resp *Resp) readArray() (Value, error) {
 	return v, nil
 }
 
-func (resp *Resp) readBulk() (Value, error) {
-	v := Value{}
-	v.typ = "bulk"
+func (resp *Resp) readBulk() (*Value, error) {
+	v := &Value{}
+	v.typ = BULK
 
 	bulkLen, _, err := resp.readInteger()
 	if err != nil {
@@ -110,11 +113,17 @@ func (resp *Resp) readBulk() (Value, error) {
 	}
 
 	bulk := make([]byte, bulkLen)
-	resp.reader.Read(bulk)
+	_, err = resp.reader.Read(bulk)
+	if err != nil {
+		slog.Error("Unable to read bulk string.")
+	}
 	v.bulk = string(bulk)
 
 	// consume the trailing CRLF
-	resp.readLine()
+	_, _, err = resp.readLine()
+	if err != nil {
+		slog.Error("Failed to consume trailing CRLF.")
+	}
 
 	return v, nil
 }

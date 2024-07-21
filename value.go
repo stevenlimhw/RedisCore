@@ -3,24 +3,14 @@ package main
 import "strconv"
 
 type Value struct {
-
-	// determine the data type carried by the value
-	typ string
-
-	// value of the string received from simple strings
-	str string
-
-	// value of the integer from integers
-	num int
-
-	// string received from RESP bulk strings
-	bulk string
-
-	// values received from RESP arrays
-	array []Value
+	typ   string
+	str   string
+	bulk  string
+	array []*Value
+	num   int
 }
 
-func (v Value) Marshal() []byte {
+func (v *Value) Marshal() []byte {
 	switch v.typ {
 	case "string":
 		return v.marshalString()
@@ -37,17 +27,17 @@ func (v Value) Marshal() []byte {
 	}
 }
 
-func (v Value) marshalString() []byte {
+func (v *Value) marshalString() []byte {
 	var bytes []byte
-	bytes = append(bytes, STRING)
+	bytes = append(bytes, stringToken)
 	bytes = append(bytes, v.str...)
 	bytes = append(bytes, '\r', '\n')
 	return bytes
 }
 
-func (v Value) marshalBulk() []byte {
+func (v *Value) marshalBulk() []byte {
 	var bytes []byte
-	bytes = append(bytes, BULK)
+	bytes = append(bytes, bulkToken)
 	bytes = append(bytes, strconv.Itoa(len(v.bulk))...)
 	bytes = append(bytes, '\r', '\n')
 	bytes = append(bytes, v.bulk...)
@@ -55,28 +45,28 @@ func (v Value) marshalBulk() []byte {
 	return bytes
 }
 
-func (v Value) marshalArray() []byte {
-	len := len(v.array)
+func (v *Value) marshalArray() []byte {
+	arrLen := len(v.array)
 	var bytes []byte
-	bytes = append(bytes, ARRAY)
-	bytes = append(bytes, strconv.Itoa(len)...)
+	bytes = append(bytes, arrayToken)
+	bytes = append(bytes, strconv.Itoa(arrLen)...)
 	bytes = append(bytes, '\r', '\n')
 
-	for i := 0; i < len; i++ {
+	for i := 0; i < arrLen; i++ {
 		bytes = append(bytes, v.array[i].Marshal()...)
 	}
 
 	return bytes
 }
 
-func (v Value) marshalError() []byte {
+func (v *Value) marshalError() []byte {
 	var bytes []byte
-	bytes = append(bytes, ERROR)
+	bytes = append(bytes, errorToken)
 	bytes = append(bytes, v.str...)
 	bytes = append(bytes, '\r', '\n')
 	return bytes
 }
 
-func (v Value) marshalNull() []byte {
+func (v *Value) marshalNull() []byte {
 	return []byte("$-1\r\n")
 }

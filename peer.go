@@ -14,7 +14,7 @@ type Peer struct {
 
 type Message struct {
 	peer  *Peer
-	value Value
+	value *Value
 }
 
 func (peer *Peer) readMessages() {

@@ -7,9 +7,9 @@ This is a hobby project to learn more about Golang and concurrency. I am working
 I am learning from the "golang genius" himself on YouTube (Anthony GG) by watching his [Redis project series here.](https://www.youtube.com/watch?v=LMrxfWB6sbQ)
 
 - If you are interested in following his project series, feel free to refer to my source code and documentation for guidance.
-- However, the code I write will be alot different than that shown on the video, so please take note!
+- However, the code I write will be alot different than that shown on the video so please take note!
 
-## Week 1: 6 July - 7 July
+## Implementation Details
 
 ### Building a basic TCP server
 
@@ -25,6 +25,9 @@ In summary, when the TCP server starts, we need to continuously listen for new p
 
 This is a list of gotchas that I encountered while working on this project.
 
-- Test
+- fieldalignment: struct with 64 pointer bytes could be 56 (govet)
+  How to fix:
+  - `go install golang.org/x/tools/go/analysis/passes/fieldalignment/cmd/fieldalignment@latest`
+  - `~/go/bin/fieldalignment -fix .`
 - Test
 - Test
