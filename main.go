@@ -4,7 +4,6 @@ import (
 	"log/slog"
 )
 
-
 func main() {
 	server := NewServer(":6379")
 	err := server.Start()
