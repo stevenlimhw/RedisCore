@@ -4,7 +4,7 @@
 
 This is a hobby project to learn more about Golang and concurrency. I am working on it during weekends and will be documenting the things I learned along the way.
 
-I am learning from the "golang genius" himself on YouTube (Anthony GG) by watching his [Redis project series here.](https://www.youtube.com/watch?v=LMrxfWB6sbQ)
+I am learning from Anthony GG on YouTube by watching his [Redis project series here.](https://www.youtube.com/watch?v=LMrxfWB6sbQ)
 
 - If you are interested in following his project series, feel free to refer to my source code and documentation for guidance.
 - However, the code I write will be alot different than that shown on the video so please take note!

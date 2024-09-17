@@ -96,18 +96,11 @@ func (server *Server) handleChannels() {
 
 // Creates a new listener for any new peer connections to the server.
 func (server *Server) acceptPeerConnections() error {
-	retries := 0
 	for {
 		conn, err := server.listener.Accept()
 
-		if retries >= 3 && err != nil {
-			slog.Error("Failed to connect to peer after retries. Closing connection.")
-			return err
-		}
-
 		if err != nil {
-			slog.Error("Failed to connect to peer. Retrying...")
-			retries++
+			slog.Error("Failed to connect to peer.")
 			continue
 		}
 		slog.Info("Connecting to peer...")

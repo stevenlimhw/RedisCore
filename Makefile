@@ -2,5 +2,15 @@
 run: build
 	@./bin/rediscore
 
-build:
+build: fmt
 	@go build -o bin/rediscore
+
+fmt:
+	@fieldalignment -fix ./...
+	@go fmt ./...
+
+test: lint
+	@go test -v ./...
+
+lint:
+	@golangci-lint run
