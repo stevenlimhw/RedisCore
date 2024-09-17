@@ -1,5 +1,10 @@
 # RedisCore: Redis In Several Weekends (using Golang)
 
+## How to run
+1. Run `make` to start the rediscore server.
+2. On another terminal, run `redis-cli` (assuming you have installed it in your computer) to start the client (peer).
+3. Input the various rediscore commands on the `redis-cli` command line.
+
 ## Motivations
 
 This is a hobby project to learn more about Golang and concurrency. I am working on it during weekends and will be documenting the things I learned along the way.
@@ -29,5 +34,3 @@ This is a list of gotchas that I encountered while working on this project.
   How to fix:
   - `go install golang.org/x/tools/go/analysis/passes/fieldalignment/cmd/fieldalignment@latest`
   - `~/go/bin/fieldalignment -fix .`
-- Test
-- Test
